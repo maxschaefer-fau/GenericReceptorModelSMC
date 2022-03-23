@@ -32,15 +32,25 @@ rho_ = (C*pi*r_rec_^2)/yz_^2; % dimensionless receptor coverage
 
 % (This is the AMPA setting from [...]) 
 % C <---> O 
-kco_ = 0.995*1.02e-4*rho_;   % in m/s
+% kco_ = 0.995*1.02e-4*rho_;   % in m/s
+% koc_ = 8.5e-3/1e-6;          % in 1/s
+% %O <---> D 
+% kod_ = 8.5e-3/1e-6;          % in 1/s
+% kdo_ = 0;                    % in 1/s
+% %C <---> D 
+% kcd_ = 0;                    % in m/s
+% kdc_ = 8.5e-3/1e-6;            % in 1/s
+
+% NMDA Setting 
+% C <---> O 
+kco_ = 0;   % in m/s
 koc_ = 8.5e-3/1e-6;          % in 1/s
 % O <---> D 
-kod_ = 8.5e-3/1e-6;          % in 1/s
-kdo_ = 0;                    % in 1/s
+kod_ = 0;          % in 1/s
+kdo_ = 8.5e-3/1e-6;                    % in 1/s
 % C <---> D 
-kcd_ = 0;                    % in m/s
-kdc_ = 1e-3/1e-6;            % in 1/s
-
+kcd_ = 0.995*1.02e-4*rho_;                    % in m/s
+kdc_ = 8.5e-3/1e-6;            % in 1/s
 
 %% Normalization 
 % Normalize all parameters to be dimensionless by Diffusion coefficient D
@@ -56,17 +66,17 @@ keCe = keCe_*a_^2/D_;
 D = D_/D_;
 
 kco = kco_*a_/D_; 
-koc = koc_*a_^2/D_; 
+koc = 0.5*koc_*a_^2/D_; 
 kod = kod_*a_^2/D_; 
-kdo = kdo_*a_^2/D_; 
+kdo = 0.1*kdo_*a_^2/D_; 
 kcd = kcd_*a_/D_; 
-kdc = kdc_*a_^2/D_; 
+kdc = 0.5*kdc_*a_^2/D_; 
 
 
 %% Set up transfer function model for the inner synaptic model 
 
 % see below eq. (26) in [...]
-Mu = 10;           % number of eigenvalues 
+Mu = 20;           % number of eigenvalues 
 mu = 0:Mu-1;        % vector to count eigenvalues 
 gmu = mu*pi/a;      % wave numbers gamma 
 smu = -D*gmu.^2;    % eigenvalues of the inner synaptic model 
@@ -118,6 +128,8 @@ fx = N0*Ka2(xe);
 
 ft = zeros(1,length(t));    % temporal excitation function 
 ft(1) = 1;                  % Define impulse at t = 0
+ft(10001) = 1;                  % Define impulse at t = 1ms
+ft(20001) = 1;                  % Define impulse at t = 2ms
 
 fe = fx.'*ft; 
 
@@ -159,34 +171,50 @@ end
 
 
 %% Plot and comparison to PBS 
-addpath('./PBS-data')
-foo = readNPY('data_szenario2.npy');
+% addpath('./PBS-data')
+% foo = readNPY('data_szenario2.npy');
+% 
+% occu = [0 cumsum(foo(:,1)).'];
+% desen = [0 cumsum(foo(:,4)).'];
+% open = occu - desen;
+% 
+% sample = round(length(t)/length(desen)); 
+% 
+% % Comparison
+% figure(1); 
+% plot(t_(1:sample:end)*1e3,desen,'or'); 
+% grid on; hold on; plot(t_*1e3,id/T,'-b','LineWidth',1.5);
+% xlabel('Time');
+% ylabel('Number of Desensitized Receptors'); 
+% legend('PBS', 'TFM');
+% 
+% figure(2); 
+% plot(t_(1:sample:end)*1e3,open,'or'); 
+% grid on; hold on; plot(t_*1e3,io/T,'-b','LineWidth',1.5);
+% xlabel('Time');
+% ylabel('Number of Open Receptors'); 
+% legend('PBS', 'TFM');
+% 
+% figure(3); 
+% plot(t_(1:sample:end)*1e3,occu,'or'); 
+% grid on; hold on; plot(t_*1e3,io/T + id/T,'-b','LineWidth',1.5);
+% xlabel('Time');
+% ylabel('Number of Occupied Receptors'); 
+% legend('PBS', 'TFM');
 
-occu = [0 cumsum(foo(:,1)).'];
-desen = [0 cumsum(foo(:,4)).'];
-open = occu - desen;
+%% Plot stuff 
 
-sample = round(length(t)/length(desen)); 
+figure(1); plot(t_*1e3,io/T,'LineWidth',1.5);grid on;hold on; 
+xlim([0 4])
+title('Number of Receptors in OPEN state')
+xlabel('Time in ms')
+ylabel('Number of open Receptors');
+legend('Setting 2.1', 'Setting 2.2', 'Setting 2.3', 'Setting 2.4')
 
-% Comparison
-figure(1); 
-plot(t_(1:sample:end)*1e3,desen,'or'); 
-grid on; hold on; plot(t_*1e3,id/T,'-b','LineWidth',1.5);
-xlabel('Time');
-ylabel('Number of Desensitized Receptors'); 
-legend('PBS', 'TFM');
-
-figure(2); 
-plot(t_(1:sample:end)*1e3,open,'or'); 
-grid on; hold on; plot(t_*1e3,io/T,'-b','LineWidth',1.5);
-xlabel('Time');
-ylabel('Number of Open Receptors'); 
-legend('PBS', 'TFM');
-
-figure(3); 
-plot(t_(1:sample:end)*1e3,occu,'or'); 
-grid on; hold on; plot(t_*1e3,io/T + id/T,'-b','LineWidth',1.5);
-xlabel('Time');
-ylabel('Number of Occupied Receptors'); 
-legend('PBS', 'TFM');
+figure(2); plot(t_*1e3,id/T,'LineWidth',1.5);grid on;hold on;
+xlim([0 4])
+title('Number of Receptors in DESENSITIZED state')
+xlabel('Time in ms')
+ylabel('Number of desensitized Receptors');
+legend('Setting 2.1', 'Setting 2.2', 'Setting 2.3', 'Setting 2.4')
 

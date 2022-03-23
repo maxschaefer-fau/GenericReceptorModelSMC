@@ -1,0 +1,45 @@
+1) Basic Parameter (not varied)
+T_ = 1e-7;       % simulatiton time step in s 
+t_end_ = 6e-3;   % simulation duration in s 
+t_ = 0:T_:t_end_;  % time vector 
+
+a_ = 2*1e-2*1e-6; % channel width in x-direction in m
+yz_ = 0.15;  % channel width in y- and z-direction in mum (1e-6 m) 
+
+D_ = 3.3e-4*1e-12/1e-6; % Diffusion coefficient in m^2/s
+keCe_ = 1e-3/1e-6; % Enzymatic degradation rate in 1/s
+
+recepDensity_ = 1e3/1e-12;  % Receptor density in 1/m^2 
+C = 203;                   % number of receptors 
+r_rec_ = 2.3e-3;            % receptor radius in mum
+
+Mu = 20	% number of modes (not interesting for PBS)
+
+N0 = 1000;  % number of release NTs 
+
+Release: Impulse at t = 0, x = 0
+
+2) Rates 
+
+2.1) NMDA Plot 
+kco_ = 0;   				% in m/s
+koc_ = 8.5e-3/1e-6;         % in 1/s
+% O <---> D 
+kod_ = 0;          			% in 1/s
+kdo_ = 8.5e-3/1e-6;         % in 1/s
+% C <---> D 
+kcd_ = 0.995*1.02e-4*rho_;  % in m/s
+kdc_ = 8.5e-3/1e-6;         % in 1/s
+
+2.2) Increase kdo to recover AMPA Model
+kdo = 1e3*kdo
+
+	2.2.1) Decrease kdo again (and kdc, koc jointly)
+		kdo = 1e1*kdo 
+		
+		kdc = 0.5*kdc
+		koc = 0.5*koc
+		
+	2.2.2) Decrease kdo (with kdc and koc from 2.2.1)
+		kdo = 0.1*kdo
+
