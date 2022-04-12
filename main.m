@@ -7,11 +7,24 @@
 % General 3-state receptor model (Open, Closed, Desensitized) with
 % possible saturation from O->C and O->D. The model can be specialized to
 % any 3-state receptor by inserting the desired transition rates. 
+%
+%
+% References: 
+%   [1] S. Lotter, M. T. Barros, R. Schober, M. Schaefer, "Signal Reception 
+%       With Generic Three-State Receptors in Synaptic MC", submitted to
+%       IEEE Global Commun. Conf. (GLOBECOM 2021), Arxiv: 
+%   
+%   [2] ﻿S. Lotter, J. Zeitler, M. Schaefer, R. Schober, "Saturating receiver 
+%       and receptor competition in synaptic DMC: Deterministic and 
+%       statistical signal models", IEEE Trans. Nanobiosci., 20(4), 464–479 
+%       2021, https://doi.org/10.1109/TNB.2021.3092279.
+%
+%
 
 
 %% Paramter Definition (with physical Dimensions) 
 
-T_ = 1e-7;       % simulatiton time step in s 
+T_ = 1e-8;       % simulatiton time step in s 
 t_end_ = 6e-3;   % simulation duration in s 
 t_ = 0:T_:t_end_;  % time vector 
 
@@ -30,27 +43,28 @@ r_rec_ = 2.3e-3;            % receptor radius in mum
 rho_ = (C*pi*r_rec_^2)/yz_^2; % dimensionless receptor coverage
 
 
-% (This is the AMPA setting from [...]) 
+% Default setting for kinetic parameters ( see [1, Section IV-A]) 
+% AMPAR
 % C <---> O 
-% kco_ = 0.995*1.02e-4*rho_;   % in m/s
-% koc_ = 8.5e-3/1e-6;          % in 1/s
-% %O <---> D 
-% kod_ = 8.5e-3/1e-6;          % in 1/s
-% kdo_ = 0;                    % in 1/s
-% %C <---> D 
-% kcd_ = 0;                    % in m/s
-% kdc_ = 8.5e-3/1e-6;            % in 1/s
-
-% NMDA Setting 
-% C <---> O 
-kco_ = 0;   % in m/s
+kco_ = 0.995*1.02e-4*rho_;   % in m/s
 koc_ = 8.5e-3/1e-6;          % in 1/s
-% O <---> D 
-kod_ = 0;          % in 1/s
-kdo_ = 8.5e-3/1e-6;                    % in 1/s
-% C <---> D 
-kcd_ = 0.995*1.02e-4*rho_;                    % in m/s
+%O <---> D 
+kod_ = 8.5e-3/1e-6;          % in 1/s
+kdo_ = 0;                    % in 1/s
+%C <---> D 
+kcd_ = 0;                    % in m/s
 kdc_ = 8.5e-3/1e-6;            % in 1/s
+
+% NMDAR 
+% C <---> O 
+% kco_ = 0;   % in m/s
+% koc_ = 8.5e-3/1e-6;          % in 1/s
+% % O <---> D 
+% kod_ = 0;          % in 1/s
+% kdo_ = 8.5e-3/1e-6;                    % in 1/s
+% % C <---> D 
+% kcd_ = 0.995*1.02e-4*rho_;                    % in m/s
+% kdc_ = 8.5e-3/1e-6;            % in 1/s
 
 %% Normalization 
 % Normalize all parameters to be dimensionless by Diffusion coefficient D
@@ -66,22 +80,33 @@ keCe = keCe_*a_^2/D_;
 D = D_/D_;
 
 kco = kco_*a_/D_; 
-koc = 0.5*koc_*a_^2/D_; 
+koc = koc_*a_^2/D_; 
 kod = kod_*a_^2/D_; 
-kdo = 0.1*kdo_*a_^2/D_; 
+kdo = kdo_*a_^2/D_; 
 kcd = kcd_*a_/D_; 
-kdc = 0.5*kdc_*a_^2/D_; 
+kdc = kdc_*a_^2/D_; 
+
+%% Rate variations 
+
+% Vary rate constants by vector sc
+sc = [1   0.5  0.5   1      1   0.5]; 
+[kco, koc, kod, kdo, kcd, kdc] = rateVariation(kco, koc, kod, kdo, ...
+     kcd, kdc, sc);
+
+
+% Define release pattern for NTs (single, or multiple)
+exci = 'multiple'; 
 
 
 %% Set up transfer function model for the inner synaptic model 
 
-% see below eq. (26) in [...]
-Mu = 20;           % number of eigenvalues 
+% see below eq. (26) in [2]
+Mu = 10;           % number of eigenvalues 
 mu = 0:Mu-1;        % vector to count eigenvalues 
 gmu = mu*pi/a;      % wave numbers gamma 
 smu = -D*gmu.^2;    % eigenvalues of the inner synaptic model 
 
-% Eigenfunctions, see eq. (36) in [...]
+% Eigenfunctions, see eq. (36) in [2]
 K1 = @(x) cos(gmu*x);           % first entry of primal eigenfunction
 K2 = @(x) D*gmu.*sin(gmu*x);    % second entry of primal eigenfunction
 
@@ -127,9 +152,19 @@ xe = 0;     % excitation position
 fx = N0*Ka2(xe); 
 
 ft = zeros(1,length(t));    % temporal excitation function 
-ft(1) = 1;                  % Define impulse at t = 0
-ft(10001) = 1;                  % Define impulse at t = 1ms
-ft(20001) = 1;                  % Define impulse at t = 2ms
+
+t0 = 0; 
+t1 = 1e-3; 
+t2 = 2e-3;
+
+if(isequal(exci,'single'))
+    ft(1) = 1;                  % Define impulse at t = 0
+else 
+    ft(1) = 1;                        % Define impulse at t = 0
+    ft(t1/T_+1) = 1;                  % Define impulse at t = t1
+    ft(t2/T_+1) = 1;                  % Define impulse at t = t2
+end
+
 
 fe = fx.'*ft; 
 
@@ -157,64 +192,35 @@ for k = 2:length(t)-1
     
     %%% Process Boundary Circuit %%% 
     
-    % accumulate fluxes 
+    % accumulate fluxes, see [1, Eq. (17)]
     io(k) = accumFlux(io(k-1),iobar(k),T); 
     id(k) = accumFlux(id(k-1),idbar(k),T);
     
-    % saturate 
+    % saturate [1, Eq. (20)]
     [csat(k), cs(k)] = saturate(ca(k), C, io(k)/T, id(k)/T); 
     
-    % number of receptors for next time step
+    % number of receptors for next time step, see [1, Eqs. (18), (19)]
     [iobar(k+1), idbar(k+1)] = receptorCircuit(csat(k), io(k), id(k), ... 
         kco, koc, kod, kdo, kcd, kdc);
 end
 
 
-%% Plot and comparison to PBS 
-% addpath('./PBS-data')
-% foo = readNPY('data_szenario2.npy');
-% 
-% occu = [0 cumsum(foo(:,1)).'];
-% desen = [0 cumsum(foo(:,4)).'];
-% open = occu - desen;
-% 
-% sample = round(length(t)/length(desen)); 
-% 
-% % Comparison
-% figure(1); 
-% plot(t_(1:sample:end)*1e3,desen,'or'); 
-% grid on; hold on; plot(t_*1e3,id/T,'-b','LineWidth',1.5);
-% xlabel('Time');
-% ylabel('Number of Desensitized Receptors'); 
-% legend('PBS', 'TFM');
-% 
-% figure(2); 
-% plot(t_(1:sample:end)*1e3,open,'or'); 
-% grid on; hold on; plot(t_*1e3,io/T,'-b','LineWidth',1.5);
-% xlabel('Time');
-% ylabel('Number of Open Receptors'); 
-% legend('PBS', 'TFM');
-% 
-% figure(3); 
-% plot(t_(1:sample:end)*1e3,occu,'or'); 
-% grid on; hold on; plot(t_*1e3,io/T + id/T,'-b','LineWidth',1.5);
-% xlabel('Time');
-% ylabel('Number of Occupied Receptors'); 
-% legend('PBS', 'TFM');
+%% Plot stuff (Dimensionless Time and dimensional number of receptors)
 
-%% Plot stuff 
-
-figure(1); plot(t_*1e3,io/T,'LineWidth',1.5);grid on;hold on; 
-xlim([0 4])
+figure(1); plot(t,io/T,'LineWidth',1.5);grid on;hold on; 
 title('Number of Receptors in OPEN state')
-xlabel('Time in ms')
+xlabel('Dimensionless time')
 ylabel('Number of open Receptors');
-legend('Setting 2.1', 'Setting 2.2', 'Setting 2.3', 'Setting 2.4')
 
-figure(2); plot(t_*1e3,id/T,'LineWidth',1.5);grid on;hold on;
-xlim([0 4])
+ax = get(gca);
+ax.XAxis.Exponent = 3;
+
+figure(2); plot(t,id/T,'LineWidth',1.5);grid on;hold on;
 title('Number of Receptors in DESENSITIZED state')
-xlabel('Time in ms')
+xlabel('Dimensionless time')
 ylabel('Number of desensitized Receptors');
-legend('Setting 2.1', 'Setting 2.2', 'Setting 2.3', 'Setting 2.4')
+
+ax = get(gca);
+ax.XAxis.Exponent = 3;
+
 
