@@ -1,6 +1,6 @@
-% General Receptor model for GC 22 
+% General Receptor based on [1]
 %
-% M. Schäfer, S. Lotter, M. Barros, 2022 
+% M. Schäfer, S. Lotter, M. T. Barros, 2022 
 % Further details can be found in: 
 % 
 %
@@ -22,7 +22,7 @@
 %
 
 
-%% Paramter Definition (with physical Dimensions) 
+%% Paramter Definition (with physical Dimensions taken from [2]) 
 
 T_ = 1e-8;       % simulatiton time step in s 
 t_end_ = 6e-3;   % simulation duration in s 
@@ -37,7 +37,7 @@ D_ = 3.3e-4*1e-12/1e-6; % Diffusion coefficient in m^2/s
 keCe_ = 1e-3/1e-6; % Enzymatic degradation rate in 1/s
 
 %% Receptor Definition (with physical Dimensions)
-recepDensity_ = 1e3/1e-12;  % Receptor density in 1/m^2 TODO: Add reference!!
+recepDensity_ = 1e3/1e-12;  % Receptor density in 1/m^2 TODO 
 C = 203;                   % number of receptors 
 r_rec_ = 2.3e-3;            % receptor radius in mum
 rho_ = (C*pi*r_rec_^2)/yz_^2; % dimensionless receptor coverage
@@ -87,9 +87,12 @@ kcd = kcd_*a_/D_;
 kdc = kdc_*a_^2/D_; 
 
 %% Rate variations 
+% The dimensionless rates kco-kdc can be varied to study the receptor
+% behavior. 
 
-% Vary rate constants by vector sc
-sc = [1   0.5  0.5   1      1   0.5]; 
+% Vector of rate variation coefficients 
+sc = [1   1  1  1      1   1]; 
+
 [kco, koc, kod, kdo, kcd, kdc] = rateVariation(kco, koc, kod, kdo, ...
      kcd, kdc, sc);
 
